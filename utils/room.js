@@ -8,25 +8,29 @@ function notifyOtherRoomMembers(roomId, ws, message) {
     });
 }
 
-function createRoom(roomId, ws) {
+function createRoom(roomId, ws, peerId) {
     if (rooms[roomId]) {
         return false;
     }
     rooms[roomId] = [];
-    rooms[roomId].push(ws);
     ws['roomId'] = roomId;
+    ws['peerId'] = peerId;
+    rooms[roomId].push(ws);
     return true;
 }
 
-function joinRoom(roomId, ws) {
+function joinRoom(roomId, ws, peerId) {
     if (!rooms[roomId]) {
         return false;
     }
-    rooms[roomId].push(ws);
     ws['roomId'] = roomId;
+    ws['peerId'] = peerId;
+    rooms[roomId].push(ws);
     notifyOtherRoomMembers(roomId, ws, JSON.stringify({
         message: "New member joined",
-        err: false
+        err: false,
+        peerId,
+        meta:"join"
     }));
     return true;
 }
@@ -45,7 +49,9 @@ function exitRoom(roomId, ws) {
     }
     notifyOtherRoomMembers(roomId, ws, JSON.stringify({
         message: "Member left",
-        err: false
+        err: false,
+        peerId: ws['peerId'],
+        meta:"exit"
     }));
     rooms[roomId] = rooms[roomId].filter((client) => client !== ws);
     deleteEmptyRooms();
@@ -60,9 +66,14 @@ function sendMessageToOther(ws, message) {
     }));
 }
 
+function getOtherRoomMembers(roomId, ws) {
+    const ws_client = rooms[roomId].filter((client) => client !== ws);
+    return ws_client.map((client) => client['peerId']);
+}
 module.exports = {
     createRoom,
     joinRoom,
     exitRoom,
-    sendMessageToOther
+    sendMessageToOther,
+    getOtherRoomMembers
 };

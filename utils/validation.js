@@ -2,7 +2,7 @@ const allowedMeta = new Set(['create', 'join', 'exit', 'message']);
 
 function validateWebsocketJSON(message) {
     try {
-        const data = JSON.parse(message);
+        const data = JSON.parse(message.toString());
         // check if room is present or not
         if (data.meta && allowedMeta.has(data.meta)) {
             return true;
@@ -17,7 +17,7 @@ function validateWebsocketJSON(message) {
 
 function createRoomValidation(data) {
     try {
-        if (data.meta === 'create' && data.roomId) {
+        if (data.meta === 'create' && data.roomId && data.peerId) {
             return true;
         }
         return false;
@@ -28,7 +28,7 @@ function createRoomValidation(data) {
 
 function joinRoomValidation(data) {
     try {
-        if (data.meta === 'join' && data.roomId) {
+        if (data.meta === 'join' && data.roomId && data.peerId) {
             return true;
         }
         return false;

@@ -4,10 +4,11 @@ const app = express();
 const path = require('path');
 const port = process.env.PORT || 4000;
 const convertor = require('./route/convertor');
+const meet = require('./route/meet');
 const server = require('http').createServer(app);
 const ws = require('ws');
 const { validateWebsocketJSON, createRoomValidation, joinRoomValidation, sendMessageValidation } = require('./utils/validation');
-const { createRoom, joinRoom, exitRoom, sendMessageToOther } = require('./utils/room');
+const { createRoom, joinRoom, exitRoom, sendMessageToOther, getOtherRoomMembers } = require('./utils/room');
 
 
 // create a websocket server
@@ -19,6 +20,7 @@ wss.on('connection', (ws) => {
         exitRoom(ws.roomId, ws);
     });
     ws.on('message', (message) => {
+        message = message.toString()
         if (validateWebsocketJSON(message)) {
             const data = JSON.parse(message);
 
@@ -26,11 +28,12 @@ wss.on('connection', (ws) => {
                 case 'create':
                     // create room
                     if (createRoomValidation(data)) {
-                        const isRoomCreated = createRoom(data.roomId, ws);
+                        const isRoomCreated = createRoom(data.roomId, ws, data.peerId);
                         if (isRoomCreated) {
                             ws.send(JSON.stringify({
                                 message: "Room created",
-                                err: false
+                                err: false,
+                                meta: "create"
                             }));
                         } else {
                             ws.send(JSON.stringify({
@@ -47,16 +50,18 @@ wss.on('connection', (ws) => {
                     break;
                 case 'join':
                     if (joinRoomValidation(data)) {
-                        const isRoomJoined = joinRoom(data.roomId, ws);
-                        if (isRoomJoined) {
-                            ws.send(JSON.stringify({
-                                message: "Room joined",
-                                err: false
-                            }));
-                        } else {
+                        const isRoomJoined = joinRoom(data.roomId, ws, data.peerId);
+                        if (!isRoomJoined) {
                             ws.send(JSON.stringify({
                                 message: "Room does not exists",
                                 err: true
+                            }));
+                        } else {
+                            ws.send(JSON.stringify({
+                                message: "Available peers",
+                                err: false,
+                                peers: getOtherRoomMembers(data.roomId, ws),
+                                meta: "onboard"
                             }));
                         }
                     } else  {
@@ -104,6 +109,7 @@ app.get("/", (req, res) => {
 
 app.use("/convert", convertor);
 
+app.use("/meet", meet)
 
 // start server
 server.listen(port, () => {
